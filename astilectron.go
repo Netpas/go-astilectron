@@ -74,6 +74,7 @@ type Options struct {
 	BaseDirectoryPath  string
 	DataDirectoryPath  string
 	ElectronSwitches   []string  // eg: []string{"ignore-certificate-errors","true"}
+	SingleInstance     bool
 }
 
 // Supported represents Astilectron supported features
@@ -151,6 +152,9 @@ func (a *Astilectron) On(eventName string, l Listener) {
 }
 
 // Start starts Astilectron
+// 1. it spawns a TCP server
+// 2. it executes the astilectron JS app that connects to this server
+// 3. and if no connection is detected by the server, the app stops.
 func (a *Astilectron) Start() (err error) {
 	// Log
 	astilog.Debug("Starting...")
@@ -262,8 +266,17 @@ func (a *Astilectron) execute() (err error) {
 
 	// Create command
 	var ctx, _ = a.canceller.NewContext()
+	var singleInstance string
+
+	if a.options.SingleInstance == true {
+		singleInstance = "true"
+	} else {
+		singleInstance = "false"
+	}
+	var cmd = exec.CommandContext(ctx, a.paths.AppExecutable(), append([]string{a.paths.AstilectronApplication(), a.listener.Addr().String(), singleInstance}, a.options.ElectronSwitches...)...)
+
 	//  ……\\electron.exe ……\\main.js 127.0.0.1:13077 ignore-certificate-errors true
-	var cmd = exec.CommandContext(ctx, a.paths.AppExecutable(), append([]string{a.paths.AstilectronApplication(), a.listener.Addr().String()}, a.options.ElectronSwitches...)...)
+	//var cmd = exec.CommandContext(ctx, a.paths.AppExecutable(), append([]string{a.paths.AstilectronApplication(), a.listener.Addr().String()}, a.options.ElectronSwitches...)...)
 	a.stderrWriter = astiexec.NewStdWriter(func(i []byte) { astilog.Debugf("Stderr says: %s", i) })
 	a.stdoutWriter = astiexec.NewStdWriter(func(i []byte) { astilog.Debugf("Stdout says: %s", i) })
 	cmd.Stderr = a.stderrWriter

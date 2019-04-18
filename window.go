@@ -28,6 +28,7 @@ const (
 	EventNameWindowCmdMinimize                 = "window.cmd.minimize"
 	EventNameWindowCmdMove                     = "window.cmd.move"
 	EventNameWindowCmdResize                   = "window.cmd.resize"
+	EventNameWindowCmdSetBounds                = "window.cmd.setbounds"
 	EventNameWindowCmdRestore                  = "window.cmd.restore"
 	EventNameWindowCmdShow                     = "window.cmd.show"
 	EventNameWindowCmdUnmaximize               = "window.cmd.unmaximize"
@@ -119,6 +120,17 @@ type WindowOptions struct {
 	Custom *WindowCustomOptions `json:"custom,omitempty"`
 	Load   *WindowLoadOptions   `json:"load,omitempty"`
 	Proxy  *WindowProxyOptions  `json:"proxy,omitempty"`
+	AppDetails *WindowAppDetails    `json:"appDetails,omitempty"`
+}
+
+// WindowAppDetails represents window app details
+// https://github.com/electron/electron/blob/v4.0.1/docs/api/browser-window.md#winsetappdetailsoptions-windows
+type WindowAppDetails struct {
+	AppID               *string `json:"appId,omitempty"`
+	AppIconPath         *string `json:"appIconPath,omitempty"`
+	RelaunchCommand     *string `json:"relaunchCommand,omitempty"`
+	AppIconIndex        *int    `json:"appIconIndex,omitempty"`
+	RelaunchDisplayName *string `json:"relaunchDisplayName,omitempty"`
 }
 
 // WindowCustomOptions represents window custom options
@@ -422,6 +434,21 @@ func (w *Window) Resize(width, height int) (err error) {
 	w.o.Width = PtrInt(width)
 	w.m.Unlock()
 	_, err = synchronousEvent(w.c, w, w.w, Event{Name: EventNameWindowCmdResize, TargetID: w.id, WindowOptions: &WindowOptions{Height: PtrInt(height), Width: PtrInt(width)}}, EventNameWindowEventResize)
+	return
+}
+
+// SetBounds set bounds of the window
+func (w *Window) SetBounds(r RectangleOptions) (err error) {
+	if err = w.isActionable(); err != nil {
+		return
+	}
+	w.m.Lock()
+	w.o.Height = r.Height
+	w.o.Width = r.Width
+	w.o.X = r.X
+	w.o.Y = r.Y
+	w.m.Unlock()
+	_, err = synchronousEvent(w.c, w, w.w, Event{Name: EventNameWindowCmdSetBounds, TargetID: w.id, Bounds: &r}, EventNameWindowEventResize)
 	return
 }
 
