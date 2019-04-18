@@ -1,3 +1,16 @@
+/*
+本文件在大量使用消息传递完成窗口的操作，因为对窗口操作需要借助 electron，而 go 和 electron 之间的交互就通过命令完成。
+GO -> JS ：操作单位是"cmd"
+JS -> GO ：操作单位是"event"
+
+命令分为两大类：
+1. callback 类：    GO 给 JS 发 CMD 命令，JS 给 GO 回送一个 EVENT 事件，GO 收到事件就说明事情完成，此时 callback 仅仅用来说明已经得到 JS 的回复   =>  synchronousEvent  (window.cmd.message <=> window.event.message.callback)
+                    高级一点的，会在收到 JS 回复的 EVENT 的时候执行回调函数 => SendMessage
+
+					JS 给 GO 发送 EVENT 消息，GO 执行操作后回送一个 CMD 事件（根据是否有 callback id）   =>  OnMessage (window.event.message <=> window.cmd.message.callback)
+2. 直接发送命令，不管执行是否成功：      w.w.write(EVENT)
+*/
+
 package astilectron
 
 import (
@@ -196,7 +209,7 @@ type WebPreferences struct {
 func newWindow(o Options, p Paths, url string, wo *WindowOptions, c *asticontext.Canceller, d *dispatcher, i *identifier, wrt *writer) (w *Window, err error) {
 	// Init
 	w = &Window{
-		callbackIdentifier: newIdentifier(),
+		callbackIdentifier: newIdentifier(),        // 此成员用于 go 和 js 之间的消息回送，用一个 id 作为标记
 		o:                  wo,
 		object:             newObject(nil, c, d, i, wrt, i.new()),
 	}
@@ -206,6 +219,7 @@ func newWindow(o Options, p Paths, url string, wo *WindowOptions, c *asticontext
 	if wo.Icon == nil && p.AppIconDefaultSrc() != "" {
 		wo.Icon = PtrStr(p.AppIconDefaultSrc())
 	}
+	// 窗口标题如果不设置，就是APPName
 	if wo.Title == nil && o.AppName != "" {
 		wo.Title = PtrStr(o.AppName)
 	}
@@ -248,6 +262,7 @@ func (w *Window) Blur() (err error) {
 	if err = w.isActionable(); err != nil {
 		return
 	}
+	// synchronousEvent 的搭配一般都是发送一个CMD命令，等待回应一个EVENT事件（表明此命令完成操作）
 	_, err = synchronousEvent(w.c, w, w.w, Event{Name: EventNameWindowCmdBlur, TargetID: w.id}, EventNameWindowEventBlur)
 	return
 }
@@ -275,6 +290,7 @@ func (w *Window) CloseDevTools() (err error) {
 	if err = w.isActionable(); err != nil {
 		return
 	}
+	// 不同于synchronousEvent，这里直接write一个CMD，说明不用等待响应的event返回
 	return w.w.write(Event{Name: EventNameWindowCmdWebContentsCloseDevTools, TargetID: w.id})
 }
 
@@ -398,9 +414,12 @@ type ListenerMessage func(m *EventMessage) (v interface{})
 
 // OnMessage adds a specific listener executed when receiving a message from the JS
 // This method can be called only once
+// 此函数和 SendMessage 函数刚刚相反
 func (w *Window) OnMessage(l ListenerMessage) {
 	w.onMessageOnce.Do(func() {
+		// 为 window.event.message 注册回调，等 JS 发过来这种事件，执行l函数，执行结果再给JS发 window.cmd.message.callback 命令
 		w.On(eventNameWindowEventMessage, func(i Event) (deleteListener bool) {
+			// 只要一收到这个消息就查看是否是需要回复的那种，如果需要回复，则为监听者构造一个函数用于回应消息
 			v := l(i.Message)
 			if len(i.CallbackID) > 0 {
 				o := Event{CallbackID: i.CallbackID, Name: eventNameWindowCmdMessageCallback, TargetID: w.id}
@@ -466,14 +485,16 @@ type CallbackMessage func(m *EventMessage)
 
 // SendMessage sends a message to the JS window and execute optional callbacks upon receiving a response from the JS
 // Use astilectron.onMessage method to capture those messages in JS
+// 此函数和 OnMessage 函数刚好相反
 func (w *Window) SendMessage(message interface{}, callbacks ...CallbackMessage) (err error) {
 	if err = w.isActionable(); err != nil {
 		return
 	}
-	var e = Event{Message: newEventMessage(message), Name: eventNameWindowCmdMessage, TargetID: w.id}
+	// 发送 window.cmd.message 事件，回调接收 window.event.message.callback 事件，收到后执行 callbacks
+	var e = Event{Message: newEventMessage(message), Name: eventNameWindowCmdMessage, TargetID: w.id}     // window.cmd.message
 	if len(callbacks) > 0 {
 		e.CallbackID = w.callbackIdentifier.new()
-		w.On(eventNameWindowEventMessageCallback, func(i Event) (deleteListener bool) {
+		w.On(eventNameWindowEventMessageCallback, func(i Event) (deleteListener bool) {  // window.event.message.callback
 			if i.CallbackID == e.CallbackID {
 				for _, c := range callbacks {
 					c(i.Message)

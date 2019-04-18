@@ -299,9 +299,7 @@ func (a *Astilectron) executeCmd(cmd *exec.Cmd) (err error) {
 // watchCmd watches the cmd execution
 func (a *Astilectron) watchCmd(cmd *exec.Cmd) {
 	// Wait
-	astilog.Debug("1111111111111111111111111111111111111111111111111111111111111111 before wait")
 	cmd.Wait()
-	astilog.Debug("2222222222222222222222222222222222222222222222222222222222222222 after wait")
 
 	// Check the canceller to check whether it was a crash
 	if !a.canceller.Cancelled() {
@@ -316,7 +314,6 @@ func (a *Astilectron) watchCmd(cmd *exec.Cmd) {
 
 // Close closes Astilectron properly
 func (a *Astilectron) Close() {
-	astilog.Debug("444444444444444444444444444444444444444444444444444 cancel")
 	astilog.Debug("Closing...")
 	a.canceller.Cancel()
 	if a.listener != nil {
@@ -350,7 +347,6 @@ func (a *Astilectron) HandleSignals() {
 
 // Stop orders Astilectron to stop
 func (a *Astilectron) Stop() {
-	astilog.Debug("33333333333333333333333333333333333333333333333333333333333 cancel()")
 	astilog.Debug("Stopping...")
 	a.canceller.Cancel()
 	a.closeOnce.Do(func() {

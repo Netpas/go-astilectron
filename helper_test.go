@@ -26,7 +26,6 @@ type mockedHandler struct {
 func (h *mockedHandler) readFile(rw http.ResponseWriter, path string) {
 	var b, err = ioutil.ReadFile(path)
 	if err != nil {
-		fmt.Println(err)
 		rw.WriteHeader(http.StatusInternalServerError)
 		return
 	}
