@@ -1,3 +1,5 @@
+// 该文件用来标记位置：Position（点）   Size（线）   Rectangle（面）
+
 package astilectron
 
 // Position represents a position

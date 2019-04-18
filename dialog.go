@@ -1,3 +1,5 @@
+// 本文件定制 message box 提示框属性
+
 package astilectron
 
 // Message box types

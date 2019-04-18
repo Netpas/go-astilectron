@@ -15,7 +15,7 @@ const (
 type Event struct {
 	// This is the base of the event
 	Name     string `json:"name"`
-	TargetID string `json:"targetID,omitempty"`
+	TargetID string `json:"targetID,omitempty"`      // 用来干嘛？？？
 
 	// This is a list of all possible payloads.
 	// A choice was made not to use interfaces since it's a pain in the ass asserting each an every payload afterwards

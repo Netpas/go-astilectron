@@ -10,23 +10,23 @@ import (
 
 // writer represents an object capable of writing in the TCP server
 type writer struct {
-	w io.WriteCloser
+	wc io.WriteCloser
 }
 
 // newWriter creates a new writer
-func newWriter(w io.WriteCloser) *writer {
+func newWriter(wc io.WriteCloser) *writer {
 	return &writer{
-		w: w,
+		wc: wc,
 	}
 }
 
 // close closes the writer properly
-func (r *writer) close() error {
-	return r.w.Close()
+func (w *writer) close() error {
+	return w.wc.Close()
 }
 
-// write writes to the stdin
-func (r *writer) write(e Event) (err error) {
+// write writes to the stdin 把 event 转换成 json 字符串 用 writer 写到一个地方
+func (w *writer) write(e Event) (err error) {
 	// Marshal
 	var b []byte
 	if b, err = json.Marshal(e); err != nil {
@@ -35,7 +35,7 @@ func (r *writer) write(e Event) (err error) {
 
 	// Write
 	astilog.Debugf("Sending to Astilectron: %s", b)
-	if _, err = r.w.Write(append(b, '\n')); err != nil {
+	if _, err = w.wc.Write(append(b, '\n')); err != nil {
 		return errors.Wrapf(err, "Writing %s failed", b)
 	}
 	return

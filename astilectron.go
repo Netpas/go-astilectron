@@ -69,11 +69,11 @@ type Astilectron struct {
 type Options struct {
 	AcceptTCPTimeout   time.Duration
 	AppName            string
-	AppIconDarwinPath  string // Darwin systems requires a specific .icns file
+	AppIconDarwinPath  string    // Darwin systems requires a specific .icns file
 	AppIconDefaultPath string
 	BaseDirectoryPath  string
 	DataDirectoryPath  string
-	ElectronSwitches   []string
+	ElectronSwitches   []string  // eg: []string{"ignore-certificate-errors","true"}
 }
 
 // Supported represents Astilectron supported features
@@ -107,7 +107,7 @@ func New(o Options) (a *Astilectron, err error) {
 		return
 	}
 
-	// Add default listeners
+	// Add default listeners, 当监听到这样的事件就做func里面对应的操作
 	a.On(EventNameAppCmdStop, func(e Event) (deleteListener bool) {
 		a.Stop()
 		return
@@ -262,6 +262,7 @@ func (a *Astilectron) execute() (err error) {
 
 	// Create command
 	var ctx, _ = a.canceller.NewContext()
+	//  ……\\electron.exe ……\\main.js 127.0.0.1:13077 ignore-certificate-errors true
 	var cmd = exec.CommandContext(ctx, a.paths.AppExecutable(), append([]string{a.paths.AstilectronApplication(), a.listener.Addr().String()}, a.options.ElectronSwitches...)...)
 	a.stderrWriter = astiexec.NewStdWriter(func(i []byte) { astilog.Debugf("Stderr says: %s", i) })
 	a.stdoutWriter = astiexec.NewStdWriter(func(i []byte) { astilog.Debugf("Stdout says: %s", i) })

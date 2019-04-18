@@ -1,3 +1,5 @@
+// 本文件用于定义热键，例如：Ctrl+A
+
 package astilectron
 
 import (

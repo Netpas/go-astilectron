@@ -13,7 +13,7 @@ const (
 	EventNameSessionEventWillDownload = "session.event.will.download"
 )
 
-// Session represents a session
+// Session Manages browser sessions, cookies, cache, proxy settings, etc.
 // TODO Add missing session methods
 // TODO Add missing session events
 // https://github.com/electron/electron/blob/v1.8.1/docs/api/session.md

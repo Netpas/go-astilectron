@@ -1,3 +1,5 @@
+// 本文件用于描述基础对象 object, 注意：object 对象实现了 Listenable 接口
+
 package astilectron
 
 import (
@@ -36,7 +38,7 @@ func newObject(parentCtx context.Context, c *asticontext.Canceller, d *dispatche
 	if parentCtx != nil {
 		o.ctx, o.cancel = context.WithCancel(parentCtx)
 	} else {
-		o.ctx, o.cancel = c.NewContext()
+		o.ctx, o.cancel = c.NewContext()    // 等同于 context.WithCancel(c.ctx)  （c.ctx 是 parentCtx）
 	}
 	return
 }
