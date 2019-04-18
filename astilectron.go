@@ -227,36 +227,24 @@ func (a *Astilectron) watchNoAccept(timeout time.Duration, chanAccepted chan boo
 
 // watchAcceptTCP accepts TCP connections
 func (a *Astilectron) acceptTCP(chanAccepted chan bool) {
-	for i := 0; i <= 1; i++ {
-		// Accept
-		var conn net.Conn
-		var err error
-		if conn, err = a.listener.Accept(); err != nil {
-			astilog.Errorf("%s while TCP accepting", err)
-			a.dispatcher.dispatch(Event{Name: EventNameAppErrorAccept, TargetID: targetIDApp})
-			a.dispatcher.dispatch(Event{Name: EventNameAppCmdStop, TargetID: targetIDApp})
-			return
-		}
-
-		// We only accept the first connection which should be Astilectron, close the next one and stop
-		// the app
-		if i > 0 {
-			astilog.Errorf("Too many TCP connections")
-			a.dispatcher.dispatch(Event{Name: EventNameAppTooManyAccept, TargetID: targetIDApp})
-			a.dispatcher.dispatch(Event{Name: EventNameAppCmdStop, TargetID: targetIDApp})
-			conn.Close()
-			return
-		}
-
-		// Let the timer know a connection has been accepted
-		chanAccepted <- true
-
-		// Create reader and writer
-		a.writer = newWriter(conn)
-		ctx, _ := a.canceller.NewContext()
-		a.reader = newReader(ctx, a.dispatcher, conn)
-		go a.reader.read()
+	// Accept
+	var conn net.Conn
+	var err error
+	if conn, err = a.listener.Accept(); err != nil {
+		astilog.Errorf("%s while TCP accepting", err)
+		a.dispatcher.dispatch(Event{Name: EventNameAppErrorAccept, TargetID: targetIDApp})
+		a.dispatcher.dispatch(Event{Name: EventNameAppCmdStop, TargetID: targetIDApp})
+		return
 	}
+
+	// Let the timer know a connection has been accepted
+	chanAccepted <- true
+
+	// Create reader and writer
+	a.writer = newWriter(conn)
+	ctx, _ := a.canceller.NewContext()
+	a.reader = newReader(ctx, a.dispatcher, conn)
+	go a.reader.read()
 }
 
 // execute executes Astilectron in Electron
@@ -311,7 +299,9 @@ func (a *Astilectron) executeCmd(cmd *exec.Cmd) (err error) {
 // watchCmd watches the cmd execution
 func (a *Astilectron) watchCmd(cmd *exec.Cmd) {
 	// Wait
+	astilog.Debug("1111111111111111111111111111111111111111111111111111111111111111 before wait")
 	cmd.Wait()
+	astilog.Debug("2222222222222222222222222222222222222222222222222222222222222222 after wait")
 
 	// Check the canceller to check whether it was a crash
 	if !a.canceller.Cancelled() {
@@ -326,6 +316,7 @@ func (a *Astilectron) watchCmd(cmd *exec.Cmd) {
 
 // Close closes Astilectron properly
 func (a *Astilectron) Close() {
+	astilog.Debug("444444444444444444444444444444444444444444444444444 cancel")
 	astilog.Debug("Closing...")
 	a.canceller.Cancel()
 	if a.listener != nil {
@@ -359,6 +350,7 @@ func (a *Astilectron) HandleSignals() {
 
 // Stop orders Astilectron to stop
 func (a *Astilectron) Stop() {
+	astilog.Debug("33333333333333333333333333333333333333333333333333333333333 cancel()")
 	astilog.Debug("Stopping...")
 	a.canceller.Cancel()
 	a.closeOnce.Do(func() {
