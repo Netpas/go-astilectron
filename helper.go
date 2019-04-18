@@ -3,9 +3,13 @@ package astilectron
 import (
 	"bytes"
 	"context"
+	"fmt"
+	"github.com/mholt/archiver"
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
+	"time"
 
 	"github.com/asticode/go-astilog"
 	"github.com/asticode/go-astitools/archive"
@@ -115,9 +119,34 @@ func Unzip(ctx context.Context, src, dst string) (err error) {
 	}(&err)
 
 	// Unzipping
+	/* eg : Unzipping
+	   C:\\Users\\Caleb\\go\\src\\lets-civet.windows\\output\\windows-386\\Lets\\vendor\\electron-windows-386-v1.8.1.zip
+	   into
+	   C:\\Users\\Caleb\\go\\src\\lets-civet.windows\\output\\windows-386\\Lets\\vendor\\electron-windows-386  */
 	astilog.Debugf("Unzipping %s into %s", src, dst)
 	if err = astiarchive.Unzip(ctx, src, dst); err != nil {
 		err = errors.Wrapf(err, "unzipping %s into %s failed", src, dst)
+		return
+	}
+	return
+}
+
+// unzipForAstilectron 解压Astilectron
+func unzipForAstilectron(dir string) (err error) {
+	if err = archiver.Unarchive(fmt.Sprintf("%s\\astilectron-v%s.zip", dir, VersionAstilectron), dir); err != nil {
+		return
+	}
+	time.Sleep(time.Second)
+	if err = os.Rename(fmt.Sprintf("%s\\astilectron-%s", dir, VersionAstilectron), dir+`\astilectron`); err != nil {
+		return
+	}
+	return
+}
+
+// unzipForElectron 解压Electron
+func unzipForElectron(dir string) (err error) {
+	if err = archiver.Unarchive(fmt.Sprintf("%s\\electron-%s-%s-v%s.zip", dir, runtime.GOOS, runtime.GOARCH, VersionElectron),
+		fmt.Sprintf("%s\\electron-%s-%s", dir, runtime.GOOS, runtime.GOARCH)); err != nil {
 		return
 	}
 	return

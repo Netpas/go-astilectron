@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 
 	"github.com/asticode/go-astilog"
 	"github.com/asticode/go-astitools/os"
@@ -187,15 +188,29 @@ func (p *defaultProvisioner) provisionPackage(ctx context.Context, paths Paths, 
 		return errors.Wrapf(err, "moving %s failed", name)
 	}
 
-	// 创建目录：C:\Users\Caleb\AppData\Roaming\Lets\vendor\astilectron (同 electron)
-	astilog.Debugf("Creating directory %s", pathDirectory)
-	if err = os.MkdirAll(pathDirectory, 0755); err != nil {
-		return errors.Wrapf(err, "mkdirall %s failed", pathDirectory)
-	}
-
 	// 解压压缩包 astilectron-v0.27.1.zip 到 C:\Users\Caleb\AppData\Roaming\Lets\vendor\astilectron (同 electron)
-	if err = Unzip(ctx, pathUnzipSrc, pathDirectory); err != nil {
-		return errors.Wrapf(err, "unzipping %s into %s failed", pathUnzipSrc, pathDirectory)
+	var unzip func(string) error
+	if name == "Electron" {
+		unzip = unzipForElectron
+	} else if name == "Astilectron" {
+		unzip = unzipForAstilectron
+	}
+	if err = unzip(paths.vendorDirectory); err != nil {
+		astilog.Debug(err)
+		if name == "Astilectron" {
+			os.RemoveAll(paths.vendorDirectory + `\astilectron`)
+		} else if name == "Electron" {
+			os.RemoveAll(fmt.Sprintf("%s\\electron-%s-%s", paths.vendorDirectory, runtime.GOOS, runtime.GOARCH))
+		}
+		// 创建目录
+		astilog.Debugf("Creating directory %s", pathDirectory)
+		if err = os.MkdirAll(pathDirectory, 0755); err != nil {
+			return errors.Wrapf(err, "mkdirall %s failed", pathDirectory)
+		}
+		// 解压
+		if err = Unzip(ctx, pathUnzipSrc, pathDirectory); err != nil {
+			return errors.Wrapf(err, "unzipping %s into %s failed", pathUnzipSrc, pathDirectory)
+		}
 	}
 
 	// Finish：nil
