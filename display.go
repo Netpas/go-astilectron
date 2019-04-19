@@ -11,24 +11,26 @@ const (
 // https://github.com/electron/electron/blob/v1.8.1/docs/api/structures/display.md
 type Display struct {
 	o       *DisplayOptions
-	primary bool
+	primary bool              // 主显示器
 }
 
-// DisplayOptions represents display options
+// DisplayOptions represents a physical display connected to the system
 // https://github.com/electron/electron/blob/v1.8.1/docs/api/structures/display.md
 type DisplayOptions struct {
 	Bounds       *RectangleOptions `json:"bounds,omitempty"`
-	ID           *int64            `json:"id,omitempty"`
-	Rotation     *int              `json:"rotation,omitempty"` // 0, 90, 180 or 270
-	ScaleFactor  *float64          `json:"scaleFactor,omitempty"`
+	ID           *int64            `json:"id,omitempty"`           // Unique identifier associated with the display
+	Rotation     *int              `json:"rotation,omitempty"`     // Can be 0, 90, 180, 270, represents screen rotation in clock-wise degrees
+	ScaleFactor  *float64          `json:"scaleFactor,omitempty"`  // Output device's pixel scale factor（像素尺度因子）
 	Size         *SizeOptions      `json:"size,omitempty"`
-	TouchSupport *string           `json:"touchSupport,omitempty"` // available, unavailable or unknown
+	TouchSupport *string           `json:"touchSupport,omitempty"` // Can be available, unavailable, unknown
 	WorkArea     *RectangleOptions `json:"workArea,omitempty"`
 	WorkAreaSize *SizeOptions      `json:"workAreaSize,omitempty"`
 }
 
 // newDisplay creates a displays
-func newDisplay(o *DisplayOptions, primary bool) *Display { return &Display{o: o, primary: primary} }
+func newDisplay(o *DisplayOptions, primary bool) *Display {
+	return &Display{o: o, primary: primary}
+}
 
 // Bounds returns the display bounds
 func (d Display) Bounds() Rectangle {

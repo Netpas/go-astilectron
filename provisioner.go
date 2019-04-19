@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 
 	"github.com/asticode/go-astilog"
 	"github.com/asticode/go-astitools/os"
@@ -22,7 +23,7 @@ var (
 	regexpDarwinInfoPList = regexp.MustCompile("<string>Electron")
 )
 
-// Provisioner represents an object capable of provisioning Astilectron
+// Provisioner 是一个可以提供 Astilectron 的接口
 type Provisioner interface {
 	Provision(ctx context.Context, appName, os, arch string, p Paths) error
 }
@@ -32,12 +33,14 @@ type mover func(ctx context.Context, p Paths) error
 
 // DefaultProvisioner represents the default provisioner
 var DefaultProvisioner = &defaultProvisioner{
+	// 下载 https://github.com/Netpas/astilectron/archive/v0.27.1.zip 到指定目录
 	moverAstilectron: func(ctx context.Context, p Paths) (err error) {
 		if err = Download(ctx, defaultHTTPClient, p.AstilectronDownloadSrc(), p.AstilectronDownloadDst()); err != nil {
 			return errors.Wrapf(err, "downloading %s into %s failed", p.AstilectronDownloadSrc(), p.AstilectronDownloadDst())
 		}
 		return
 	},
+	// 下载 https://github.com/electron/electron/releases/download/v1.8.1/electron-windows-386-v1.8.1.zip 到指定目录
 	moverElectron: func(ctx context.Context, p Paths) (err error) {
 		if err = Download(ctx, defaultHTTPClient, p.ElectronDownloadSrc(), p.ElectronDownloadDst()); err != nil {
 			return errors.Wrapf(err, "downloading %s into %s failed", p.ElectronDownloadSrc(), p.ElectronDownloadDst())
@@ -54,28 +57,29 @@ type defaultProvisioner struct {
 
 // provisionStatusElectronKey returns the electron's provision status key
 func provisionStatusElectronKey(os, arch string) string {
+	// eg: "windows-386"，用于 electron 的命名
 	return fmt.Sprintf("%s-%s", os, arch)
 }
 
-// Provision implements the provisioner interface
-// TODO Package app using electron instead of downloading Electron + Astilectron separately
+// Provision 准备好 astilectron 和 electron，包括下载解压
 func (p *defaultProvisioner) Provision(ctx context.Context, appName, os, arch string, paths Paths) (err error) {
-	// Retrieve provision status
+	// 从 status.json 文件中读取 json 串，并解析到 PrivisionStatus 即s的结构中
+	// 得到 s的内容如 {"astilectron":{"version":"0.27.1"},"electron":{"windows-386":{"version":"1.8.1"}}}
 	var s ProvisionStatus
 	if s, err = p.ProvisionStatus(paths); err != nil {
 		err = errors.Wrap(err, "retrieving provisioning status failed")
 		return
 	}
-	defer p.updateProvisionStatus(paths, &s)
+	defer p.updateProvisionStatus(paths, &s)  // 函数退出时，用 s 更新 status.json 文件
 
-	// Provision astilectron
+	// 准备好astilectron
 	if err = p.provisionAstilectron(ctx, paths, s); err != nil {
 		err = errors.Wrap(err, "provisioning astilectron failed")
 		return
 	}
 	s.Astilectron = &ProvisionStatusPackage{Version: VersionAstilectron}
 
-	// Provision electron
+	// 准备好electron
 	if err = p.provisionElectron(ctx, paths, s, appName, os, arch); err != nil {
 		err = errors.Wrap(err, "provisioning electron failed")
 		return
@@ -95,9 +99,9 @@ type ProvisionStatusPackage struct {
 	Version string `json:"version"`
 }
 
-// ProvisionStatus returns the provision status
+// ProvisionStatus 从 status.json 文件中读取 json 串，并解析到 PrivisionStatus 结构中
 func (p *defaultProvisioner) ProvisionStatus(paths Paths) (s ProvisionStatus, err error) {
-	// Open the file
+	// 打开文件: C:\Users\Caleb\AppData\Roaming\Lets\vendor\status.json
 	var f *os.File
 	s.Electron = make(map[string]*ProvisionStatusPackage)
 	if f, err = os.Open(paths.ProvisionStatus()); err != nil {
@@ -110,7 +114,7 @@ func (p *defaultProvisioner) ProvisionStatus(paths Paths) (s ProvisionStatus, er
 	}
 	defer f.Close()
 
-	// Unmarshal
+	// 文件内容如：{"astilectron":{"version":"0.27.1"},"electron":{"windows-386":{"version":"1.8.1"}}}，可以解析到 s 中
 	if errLocal := json.NewDecoder(f).Decode(&s); errLocal != nil {
 		// For backward compatibility purposes, if there's an unmarshal error we delete the status file and make the
 		// assumption that provisioning has to be done all over again
@@ -124,9 +128,9 @@ func (p *defaultProvisioner) ProvisionStatus(paths Paths) (s ProvisionStatus, er
 	return
 }
 
-// ProvisionStatus updates the provision status
+// ProvisionStatus 使用 s 来更新 status.json 文件
 func (p *defaultProvisioner) updateProvisionStatus(paths Paths, s *ProvisionStatus) (err error) {
-	// Create the file
+	// Create the file: C:\Users\Caleb\AppData\Roaming\Lets\vendor\status.json
 	var f *os.File
 	if f, err = os.Create(paths.ProvisionStatus()); err != nil {
 		err = errors.Wrapf(err, "creating file %s failed", paths.ProvisionStatus())
@@ -142,12 +146,13 @@ func (p *defaultProvisioner) updateProvisionStatus(paths Paths, s *ProvisionStat
 	return
 }
 
-// provisionAstilectron provisions astilectron
+// provisionAstilectron 准备好 Astilectron
 func (p *defaultProvisioner) provisionAstilectron(ctx context.Context, paths Paths, s ProvisionStatus) error {
-	return p.provisionPackage(ctx, paths, s.Astilectron, p.moverAstilectron, "Astilectron", VersionAstilectron, paths.AstilectronUnzipSrc(), paths.AstilectronDirectory(), nil)
+	return p.provisionPackage(ctx, paths, s.Astilectron, p.moverAstilectron, "Astilectron", VersionAstilectron,
+		paths.AstilectronUnzipSrc(), paths.AstilectronDirectory(), nil)
 }
 
-// provisionElectron provisions electron
+// provisionElectron 准备好 Electron
 func (p *defaultProvisioner) provisionElectron(ctx context.Context, paths Paths, s ProvisionStatus, appName, os, arch string) error {
 	return p.provisionPackage(ctx, paths, s.Electron[provisionStatusElectronKey(os, arch)], p.moverElectron, "Electron", VersionElectron, paths.ElectronUnzipSrc(), paths.ElectronDirectory(), func() (err error) {
 		switch os {
@@ -162,38 +167,53 @@ func (p *defaultProvisioner) provisionElectron(ctx context.Context, paths Paths,
 	})
 }
 
-// provisionPackage provisions a package
-func (p *defaultProvisioner) provisionPackage(ctx context.Context, paths Paths, s *ProvisionStatusPackage, m mover, name, version, pathUnzipSrc, pathDirectory string, finish func() error) (err error) {
-	// Package has already been provisioned
+// provisionPackage 下载并解压Astilectron 或 Electron，如果已经存在则直接返回
+func (p *defaultProvisioner) provisionPackage(ctx context.Context, paths Paths, s *ProvisionStatusPackage,
+	m mover, name, version, pathUnzipSrc, pathDirectory string, finish func() error) (err error) {
+	// Astilectron 或 Electron 已经下载并安装好了
 	if s != nil && s.Version == version {
 		astilog.Debugf("%s has already been provisioned to version %s, moving on...", name, version)
 		return
 	}
 	astilog.Debugf("Provisioning %s...", name)
 
-	// Remove previous install
+	// 移除之前安装目录
 	astilog.Debugf("Removing directory %s", pathDirectory)
 	if err = os.RemoveAll(pathDirectory); err != nil && !os.IsNotExist(err) {
 		return errors.Wrapf(err, "removing %s failed", pathDirectory)
 	}
 
-	// Move
+	// 下载 https://github.com/Netpas/astilectron/archive/v0.27.1.zip 到指定目录 (同 electron)
 	if err = m(ctx, paths); err != nil {
 		return errors.Wrapf(err, "moving %s failed", name)
 	}
 
-	// Create directory
-	astilog.Debugf("Creating directory %s", pathDirectory)
-	if err = os.MkdirAll(pathDirectory, 0755); err != nil {
-		return errors.Wrapf(err, "mkdirall %s failed", pathDirectory)
+	// 解压压缩包 astilectron-v0.27.1.zip 到 C:\Users\Caleb\AppData\Roaming\Lets\vendor\astilectron (同 electron)
+	var unzip func(string) error
+	if name == "Electron" {
+		unzip = unzipForElectron
+	} else if name == "Astilectron" {
+		unzip = unzipForAstilectron
+	}
+	if err = unzip(paths.vendorDirectory); err != nil {
+		astilog.Debug(err)
+		if name == "Astilectron" {
+			os.RemoveAll(paths.vendorDirectory + `\astilectron`)
+		} else if name == "Electron" {
+			os.RemoveAll(fmt.Sprintf("%s\\electron-%s-%s", paths.vendorDirectory, runtime.GOOS, runtime.GOARCH))
+		}
+		// 创建目录
+		astilog.Debugf("Creating directory %s", pathDirectory)
+		if err = os.MkdirAll(pathDirectory, 0755); err != nil {
+			return errors.Wrapf(err, "mkdirall %s failed", pathDirectory)
+		}
+		// 解压
+		if err = Unzip(ctx, pathUnzipSrc, pathDirectory); err != nil {
+			return errors.Wrapf(err, "unzipping %s into %s failed", pathUnzipSrc, pathDirectory)
+		}
 	}
 
-	// Unzip
-	if err = Unzip(ctx, pathUnzipSrc, pathDirectory); err != nil {
-		return errors.Wrapf(err, "unzipping %s into %s failed", pathUnzipSrc, pathDirectory)
-	}
-
-	// Finish
+	// Finish：nil
 	if finish != nil {
 		if err = finish(); err != nil {
 			return errors.Wrap(err, "finishing failed")
@@ -309,6 +329,7 @@ func (p *defaultProvisioner) provisionElectronFinishDarwinRename(appName string,
 }
 
 // Disembedder is a functions that allows to disembed data from a path
+// 这种函数用在 Asset、AssetDir 这些成员上
 type Disembedder func(src string) ([]byte, error)
 
 // NewDisembedderProvisioner creates a provisioner that can provision based on embedded data

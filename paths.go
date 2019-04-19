@@ -1,3 +1,5 @@
+// 本文件就是对用户传入的 Options 参数做了整理后，初始化了一堆路径，方便后续代码执行使用
+
 package astilectron
 
 import (
@@ -11,70 +13,82 @@ import (
 
 // Paths represents the set of paths needed by Astilectron
 type Paths struct {
-	appExecutable          string
-	appIconDarwinSrc       string
-	appIconDefaultSrc      string
-	astilectronApplication string
-	astilectronDirectory   string
-	astilectronDownloadSrc string
-	astilectronDownloadDst string
-	astilectronUnzipSrc    string
-	baseDirectory          string
-	dataDirectory          string
-	electronDirectory      string
-	electronDownloadSrc    string
-	electronDownloadDst    string
-	electronUnzipSrc       string
-	provisionStatus        string
-	vendorDirectory        string
+	appExecutable          string // C:\Users\Caleb\AppData\Roaming\Lets\vendor\electron-windows-386\electron.exe
+	appIconDarwinSrc       string // C:\Users\Caleb\AppData\Roaming\Lets\resources\dist\icon.icns
+	appIconDefaultSrc      string // C:\Users\Caleb\AppData\Roaming\Lets\resources\dist\icon.png
+	astilectronApplication string // C:\Users\Caleb\AppData\Roaming\Lets\vendor\astilectron\main.js
+	astilectronDirectory   string // C:\Users\Caleb\AppData\Roaming\Lets\vendor\astilectron
+	astilectronDownloadSrc string // https://github.com/Netpas/astilectron/archive/v0.27.1.zip
+	astilectronDownloadDst string // C:\Users\Caleb\AppData\Roaming\Lets\vendor\astilectron-v0.27.1.zip
+	astilectronUnzipSrc    string // astilectron-v0.27.1.zip 里面的 astilectron-0.27.1 文件夹
+	baseDirectory          string // C:\Program Files (x86)\letsvpn
+	dataDirectory          string // C:\Users\Caleb\AppData\Roaming\Lets
+	electronDirectory      string // C:\Users\Caleb\AppData\Roaming\Lets\vendor\electron-windows-386
+	electronDownloadSrc    string // https://github.com/electron/electron/releases/download/v1.8.1/electron-windows-386-v1.8.1.zip
+	electronDownloadDst    string // C:\Users\Caleb\AppData\Roaming\Lets\vendor\electron-windows-386-v1.8.1.zip
+	electronUnzipSrc       string // C:\Users\Caleb\AppData\Roaming\Lets\vendor\electron-windows-386-v1.8.1.zip
+	provisionStatus        string // C:\Users\Caleb\AppData\Roaming\Lets\vendor\status.json
+	vendorDirectory        string // C:\Users\Caleb\AppData\Roaming\Lets\vendor
 }
 
 // newPaths creates new paths
 func newPaths(os, arch string, o Options) (p *Paths, err error) {
-	// Init base directory path
+	// 初始化基础目录路径，如果用户不指定，则会默认使用 Lets.exe 所在目录路径
 	p = &Paths{}
 	if err = p.initBaseDirectory(o.BaseDirectoryPath); err != nil {
 		err = errors.Wrap(err, "initializing base directory failed")
 		return
 	}
 
-	// Init data directory path
+	// 初始化数据目录路径，如果用户不指定，则会默认使用例如"C:\Users\Caleb\AppData\Roaming\Lets"
 	if err = p.initDataDirectory(o.DataDirectoryPath, o.AppName); err != nil {
 		err = errors.Wrap(err, "initializing data directory failed")
 		return
 	}
 
 	// Init other paths
-	//!\\ Order matters
+	// C:\Users\Caleb\AppData\Roaming\Lets\resources\dist\icon.icns
 	p.appIconDarwinSrc = o.AppIconDarwinPath
 	if len(p.appIconDarwinSrc) > 0 && !filepath.IsAbs(p.appIconDarwinSrc) {
 		p.appIconDarwinSrc = filepath.Join(p.dataDirectory, p.appIconDarwinSrc)
 	}
+	// C:\Users\Caleb\AppData\Roaming\Lets\resources\dist\icon.png
 	p.appIconDefaultSrc = o.AppIconDefaultPath
 	if len(p.appIconDefaultSrc) > 0 && !filepath.IsAbs(p.appIconDefaultSrc) {
 		p.appIconDefaultSrc = filepath.Join(p.dataDirectory, p.appIconDefaultSrc)
 	}
+	// C:\Users\Caleb\AppData\Roaming\Lets\vendor
 	p.vendorDirectory = filepath.Join(p.dataDirectory, "vendor")
+	// C:\Users\Caleb\AppData\Roaming\Lets\vendor\status.json
+	// 该文件存放的内容如：{"astilectron":{"version":"0.27.1"},"electron":{"windows-386":{"version":"1.8.1"}}}
 	p.provisionStatus = filepath.Join(p.vendorDirectory, "status.json")
+	// C:\Users\Caleb\AppData\Roaming\Lets\vendor\astilectron
 	p.astilectronDirectory = filepath.Join(p.vendorDirectory, "astilectron")
+	// C:\Users\Caleb\AppData\Roaming\Lets\vendor\astilectron\main.js
 	p.astilectronApplication = filepath.Join(p.astilectronDirectory, "main.js")
+	// https://github.com/Netpas/astilectron/archive/v0.27.1.zip
 	p.astilectronDownloadSrc = AstilectronDownloadSrc()
+	// C:\Users\Caleb\AppData\Roaming\Lets\vendor\astilectron-v0.27.1.zip
 	p.astilectronDownloadDst = filepath.Join(p.vendorDirectory, fmt.Sprintf("astilectron-v%s.zip", VersionAstilectron))
+	// astilectron-v0.27.1.zip 里面的 astilectron-0.27.1 文件夹
 	p.astilectronUnzipSrc = filepath.Join(p.astilectronDownloadDst, fmt.Sprintf("astilectron-%s", VersionAstilectron))
+	// C:\Users\Caleb\AppData\Roaming\Lets\vendor\electron-windows-386
 	p.electronDirectory = filepath.Join(p.vendorDirectory, fmt.Sprintf("electron-%s-%s", os, arch))
+	// https://github.com/electron/electron/releases/download/v1.8.1/electron-windows-386-v1.8.1.zip
 	p.electronDownloadSrc = ElectronDownloadSrc(os, arch)
+	// C:\Users\Caleb\AppData\Roaming\Lets\vendor\electron-windows-386-v1.8.1.zip
 	p.electronDownloadDst = filepath.Join(p.vendorDirectory, fmt.Sprintf("electron-%s-%s-v%s.zip", os, arch, VersionElectron))
 	p.electronUnzipSrc = p.electronDownloadDst
+	// C:\Users\Caleb\AppData\Roaming\Lets\vendor\electron-windows-386\electron.exe
 	p.initAppExecutable(os, o.AppName)
 	return
 }
 
-// initBaseDirectory initializes the base directory path
+// initBaseDirectory 最终得到一个目录绝对路径
 func (p *Paths) initBaseDirectory(baseDirectoryPath string) (err error) {
-	// No path specified in the options
+	// 获取 p.baseDirectory
 	p.baseDirectory = baseDirectoryPath
 	if len(p.baseDirectory) == 0 {
-		// Retrieve executable path
 		var ep string
 		if ep, err = os.Executable(); err != nil {
 			err = errors.Wrap(err, "retrieving executable path failed")
@@ -83,7 +97,7 @@ func (p *Paths) initBaseDirectory(baseDirectoryPath string) (err error) {
 		p.baseDirectory = filepath.Dir(ep)
 	}
 
-	// We need the absolute path
+	// 保证 p.baseDirectory 必须是一个绝对路径
 	if p.baseDirectory, err = filepath.Abs(p.baseDirectory); err != nil {
 		err = errors.Wrap(err, "computing absolute path failed")
 		return
@@ -91,6 +105,7 @@ func (p *Paths) initBaseDirectory(baseDirectoryPath string) (err error) {
 	return
 }
 
+// initDataDirectory 最终得到一个目录绝对路径
 func (p *Paths) initDataDirectory(dataDirectoryPath, appName string) (err error) {
 	// Path is specified in the options
 	if len(dataDirectoryPath) > 0 {
@@ -102,7 +117,7 @@ func (p *Paths) initDataDirectory(dataDirectoryPath, appName string) (err error)
 		return
 	}
 
-	// If the APPDATA env exists, we use it
+	// If the APPDATA env exists, we use it. APPDATA eg: "C:\Users\Caleb\AppData\Roaming"
 	if v := os.Getenv("APPDATA"); len(v) > 0 {
 		p.dataDirectory = filepath.Join(v, appName)
 		return

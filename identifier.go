@@ -1,3 +1,5 @@
+// 该文件（精确说应该是identifier）专门用于生成一个唯一标识符
+
 package astilectron
 
 import (

@@ -69,11 +69,12 @@ type Astilectron struct {
 type Options struct {
 	AcceptTCPTimeout   time.Duration
 	AppName            string
-	AppIconDarwinPath  string // Darwin systems requires a specific .icns file
+	AppIconDarwinPath  string    // Darwin systems requires a specific .icns file
 	AppIconDefaultPath string
 	BaseDirectoryPath  string
 	DataDirectoryPath  string
-	ElectronSwitches   []string
+	ElectronSwitches   []string  // eg: []string{"ignore-certificate-errors","true"}
+	SingleInstance     bool
 }
 
 // Supported represents Astilectron supported features
@@ -107,7 +108,7 @@ func New(o Options) (a *Astilectron, err error) {
 		return
 	}
 
-	// Add default listeners
+	// Add default listeners, 当监听到这样的事件就做func里面对应的操作
 	a.On(EventNameAppCmdStop, func(e Event) (deleteListener bool) {
 		a.Stop()
 		return
@@ -151,6 +152,9 @@ func (a *Astilectron) On(eventName string, l Listener) {
 }
 
 // Start starts Astilectron
+// 1. it spawns a TCP server
+// 2. it executes the astilectron JS app that connects to this server
+// 3. and if no connection is detected by the server, the app stops.
 func (a *Astilectron) Start() (err error) {
 	// Log
 	astilog.Debug("Starting...")
@@ -223,36 +227,24 @@ func (a *Astilectron) watchNoAccept(timeout time.Duration, chanAccepted chan boo
 
 // watchAcceptTCP accepts TCP connections
 func (a *Astilectron) acceptTCP(chanAccepted chan bool) {
-	for i := 0; i <= 1; i++ {
-		// Accept
-		var conn net.Conn
-		var err error
-		if conn, err = a.listener.Accept(); err != nil {
-			astilog.Errorf("%s while TCP accepting", err)
-			a.dispatcher.dispatch(Event{Name: EventNameAppErrorAccept, TargetID: targetIDApp})
-			a.dispatcher.dispatch(Event{Name: EventNameAppCmdStop, TargetID: targetIDApp})
-			return
-		}
-
-		// We only accept the first connection which should be Astilectron, close the next one and stop
-		// the app
-		if i > 0 {
-			astilog.Errorf("Too many TCP connections")
-			a.dispatcher.dispatch(Event{Name: EventNameAppTooManyAccept, TargetID: targetIDApp})
-			a.dispatcher.dispatch(Event{Name: EventNameAppCmdStop, TargetID: targetIDApp})
-			conn.Close()
-			return
-		}
-
-		// Let the timer know a connection has been accepted
-		chanAccepted <- true
-
-		// Create reader and writer
-		a.writer = newWriter(conn)
-		ctx, _ := a.canceller.NewContext()
-		a.reader = newReader(ctx, a.dispatcher, conn)
-		go a.reader.read()
+	// Accept
+	var conn net.Conn
+	var err error
+	if conn, err = a.listener.Accept(); err != nil {
+		astilog.Errorf("%s while TCP accepting", err)
+		a.dispatcher.dispatch(Event{Name: EventNameAppErrorAccept, TargetID: targetIDApp})
+		a.dispatcher.dispatch(Event{Name: EventNameAppCmdStop, TargetID: targetIDApp})
+		return
 	}
+
+	// Let the timer know a connection has been accepted
+	chanAccepted <- true
+
+	// Create reader and writer
+	a.writer = newWriter(conn)
+	ctx, _ := a.canceller.NewContext()
+	a.reader = newReader(ctx, a.dispatcher, conn)
+	go a.reader.read()
 }
 
 // execute executes Astilectron in Electron
@@ -262,7 +254,17 @@ func (a *Astilectron) execute() (err error) {
 
 	// Create command
 	var ctx, _ = a.canceller.NewContext()
-	var cmd = exec.CommandContext(ctx, a.paths.AppExecutable(), append([]string{a.paths.AstilectronApplication(), a.listener.Addr().String()}, a.options.ElectronSwitches...)...)
+	var singleInstance string
+
+	if a.options.SingleInstance == true {
+		singleInstance = "true"
+	} else {
+		singleInstance = "false"
+	}
+	var cmd = exec.CommandContext(ctx, a.paths.AppExecutable(), append([]string{a.paths.AstilectronApplication(), a.listener.Addr().String(), singleInstance}, a.options.ElectronSwitches...)...)
+
+	//  ……\\electron.exe ……\\main.js 127.0.0.1:13077 ignore-certificate-errors true
+	//var cmd = exec.CommandContext(ctx, a.paths.AppExecutable(), append([]string{a.paths.AstilectronApplication(), a.listener.Addr().String()}, a.options.ElectronSwitches...)...)
 	a.stderrWriter = astiexec.NewStdWriter(func(i []byte) { astilog.Debugf("Stderr says: %s", i) })
 	a.stdoutWriter = astiexec.NewStdWriter(func(i []byte) { astilog.Debugf("Stdout says: %s", i) })
 	cmd.Stderr = a.stderrWriter
