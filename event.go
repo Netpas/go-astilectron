@@ -30,6 +30,8 @@ type Event struct {
 	ID                  *int                 `json:"id,omitempty"`
 	Image               string               `json:"image,omitempty"`
 	Index               *int                 `json:"index,omitempty"`
+	HookMessage         *int                 `json:"hookMessage,omitempty"`
+	Wparam              *int                 `json:"wparam,omitempty"`
 	Menu                *EventMenu           `json:"menu,omitempty"`
 	MenuItem            *EventMenuItem       `json:"menuItem,omitempty"`
 	MenuItemOptions     *MenuItemOptions     `json:"menuItemOptions,omitempty"`

@@ -44,6 +44,7 @@ const (
 	EventNameWindowCmdSetBounds                = "window.cmd.setbounds"
 	EventNameWindowCmdGetBounds                = "window.cmd.getbounds"
 	EventNameWindowCmdRestore                  = "window.cmd.restore"
+	EventNameWindowCmdHook                     = "window.cmd.hook"
 	EventNameWindowCmdShow                     = "window.cmd.show"
 	EventNameWindowCmdUnmaximize               = "window.cmd.unmaximize"
 	EventNameWindowCmdWebContentsCloseDevTools = "window.cmd.web.contents.close.dev.tools"
@@ -67,6 +68,8 @@ const (
 	EventNameWindowEventUnresponsive           = "window.event.unresponsive"
 	EventNameWindowEventDidGetRedirectRequest  = "window.event.did.get.redirect.request"
 	EventNameWindowEventWillNavigate           = "window.event.will.navigate"
+	EventNameWindowEventSystemAwake            = "window.event.system.awake"
+	EventNameWindowEventSystemShutdown         = "window.event.system.shutdown"
 )
 
 // Title bar styles
@@ -495,6 +498,17 @@ func (w *Window) Restore() (err error) {
 	}
 	_, err = synchronousEvent(w.c, w, w.w, Event{Name: EventNameWindowCmdRestore, TargetID: w.id}, EventNameWindowEventRestore)
 	return
+}
+
+// HookCallbackFunc represents a hook message callback
+type HookCallbackFunc func(wParam uintptr, lParam uintptr)
+
+// HookWindowMessage 标记系统消息，当系统发出此消息时会通知我们
+func (w *Window) HookWindowMessage(message int) (err error) {
+	if err = w.isActionable(); err != nil {
+		return
+	}
+	return w.w.write(Event{Name: EventNameWindowCmdHook, TargetID: w.id, HookMessage: &message})
 }
 
 // CallbackMessage represents a message callback
