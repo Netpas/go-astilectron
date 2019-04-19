@@ -42,6 +42,7 @@ const (
 	EventNameWindowCmdMove                     = "window.cmd.move"
 	EventNameWindowCmdResize                   = "window.cmd.resize"
 	EventNameWindowCmdSetBounds                = "window.cmd.setbounds"
+	EventNameWindowCmdGetBounds                = "window.cmd.getbounds"
 	EventNameWindowCmdRestore                  = "window.cmd.restore"
 	EventNameWindowCmdShow                     = "window.cmd.show"
 	EventNameWindowCmdUnmaximize               = "window.cmd.unmaximize"
@@ -62,6 +63,7 @@ const (
 	EventNameWindowEventRestore                = "window.event.restore"
 	EventNameWindowEventShow                   = "window.event.show"
 	EventNameWindowEventUnmaximize             = "window.event.unmaximize"
+	EventNameWindowEventGetDone                = "window.event.get.done"
 	EventNameWindowEventUnresponsive           = "window.event.unresponsive"
 	EventNameWindowEventDidGetRedirectRequest  = "window.event.did.get.redirect.request"
 	EventNameWindowEventWillNavigate           = "window.event.will.navigate"
@@ -468,6 +470,21 @@ func (w *Window) SetBounds(r RectangleOptions) (err error) {
 	w.o.Y = r.Y
 	w.m.Unlock()
 	_, err = synchronousEvent(w.c, w, w.w, Event{Name: EventNameWindowCmdSetBounds, TargetID: w.id, Bounds: &r}, EventNameWindowEventResize)
+	return
+}
+
+// GetBounds get bounds of the window
+func (w *Window) GetBounds() (r RectangleOptions, err error) {
+	if err = w.isActionable(); err != nil {
+		return
+	}
+
+	var o Event
+	o, err = synchronousEvent(w.c, w, w.w, Event{Name: EventNameWindowCmdGetBounds, TargetID: w.id}, EventNameWindowEventGetDone)
+	if err == nil && o.Bounds != nil {
+		r = *o.Bounds
+	}
+
 	return
 }
 
