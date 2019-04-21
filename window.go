@@ -41,9 +41,11 @@ const (
 	EventNameWindowCmdMinimize                 = "window.cmd.minimize"
 	EventNameWindowCmdMove                     = "window.cmd.move"
 	EventNameWindowCmdResize                   = "window.cmd.resize"
+	EventNameWindowCmdRestore                  = "window.cmd.restore"
 	EventNameWindowCmdSetBounds                = "window.cmd.setbounds"
 	EventNameWindowCmdGetBounds                = "window.cmd.getbounds"
-	EventNameWindowCmdRestore                  = "window.cmd.restore"
+	EventNameWindowCmdSetTitle                 = "window.cmd.settitle"
+	EventNameWindowCmdGetTitle                 = "window.cmd.gettitle"
 	EventNameWindowCmdHook                     = "window.cmd.hook"
 	EventNameWindowCmdShow                     = "window.cmd.show"
 	EventNameWindowCmdUnmaximize               = "window.cmd.unmaximize"
@@ -64,7 +66,10 @@ const (
 	EventNameWindowEventRestore                = "window.event.restore"
 	EventNameWindowEventShow                   = "window.event.show"
 	EventNameWindowEventUnmaximize             = "window.event.unmaximize"
-	EventNameWindowEventGetDone                = "window.event.get.done"
+	EventNameWindowEventSetBounds              = "window.event.setbounds"
+	EventNameWindowEventGetBounds              = "window.event.getbounds"
+	EventNameWindowEventSetTitle               = "window.event.settitle"
+	EventNameWindowEventGetTitle               = "window.event.gettitle"
 	EventNameWindowEventUnresponsive           = "window.event.unresponsive"
 	EventNameWindowEventDidGetRedirectRequest  = "window.event.did.get.redirect.request"
 	EventNameWindowEventWillNavigate           = "window.event.will.navigate"
@@ -461,6 +466,15 @@ func (w *Window) Resize(width, height int) (err error) {
 	return
 }
 
+// Restore restores the window
+func (w *Window) Restore() (err error) {
+	if err = w.isActionable(); err != nil {
+		return
+	}
+	_, err = synchronousEvent(w.c, w, w.w, Event{Name: EventNameWindowCmdRestore, TargetID: w.id}, EventNameWindowEventRestore)
+	return
+}
+
 // SetBounds set bounds of the window
 func (w *Window) SetBounds(r RectangleOptions) (err error) {
 	if err = w.isActionable(); err != nil {
@@ -472,7 +486,7 @@ func (w *Window) SetBounds(r RectangleOptions) (err error) {
 	w.o.X = r.X
 	w.o.Y = r.Y
 	w.m.Unlock()
-	_, err = synchronousEvent(w.c, w, w.w, Event{Name: EventNameWindowCmdSetBounds, TargetID: w.id, Bounds: &r}, EventNameWindowEventResize)
+	_, err = synchronousEvent(w.c, w, w.w, Event{Name: EventNameWindowCmdSetBounds, TargetID: w.id, Bounds: &r}, EventNameWindowEventSetBounds)
 	return
 }
 
@@ -483,7 +497,7 @@ func (w *Window) GetBounds() (r RectangleOptions, err error) {
 	}
 
 	var o Event
-	o, err = synchronousEvent(w.c, w, w.w, Event{Name: EventNameWindowCmdGetBounds, TargetID: w.id}, EventNameWindowEventGetDone)
+	o, err = synchronousEvent(w.c, w, w.w, Event{Name: EventNameWindowCmdGetBounds, TargetID: w.id}, EventNameWindowEventGetBounds)
 	if err == nil && o.Bounds != nil {
 		r = *o.Bounds
 	}
@@ -491,12 +505,26 @@ func (w *Window) GetBounds() (r RectangleOptions, err error) {
 	return
 }
 
-// Restore restores the window
-func (w *Window) Restore() (err error) {
+// SetTitle set title of the window
+func (w *Window) SetTitle(title string) (err error) {
 	if err = w.isActionable(); err != nil {
 		return
 	}
-	_, err = synchronousEvent(w.c, w, w.w, Event{Name: EventNameWindowCmdRestore, TargetID: w.id}, EventNameWindowEventRestore)
+	_, err = synchronousEvent(w.c, w, w.w, Event{Name: EventNameWindowCmdSetTitle, TargetID: w.id, Title: title}, EventNameWindowEventSetTitle)
+	return
+}
+
+// GetTitle get title of the window
+func (w *Window) GetTitle() (title string, err error) {
+	var e Event
+
+	if err = w.isActionable(); err != nil {
+		return
+	}
+	e, err = synchronousEvent(w.c, w, w.w, Event{Name: EventNameWindowCmdGetTitle, TargetID: w.id}, EventNameWindowEventGetTitle)
+	if err == nil {
+		return e.Title, err
+	}
 	return
 }
 

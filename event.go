@@ -23,6 +23,7 @@ type Event struct {
 	AuthInfo            *EventAuthInfo       `json:"authInfo,omitempty"`
 	Badge               string               `json:"badge,omitempty"`
 	BounceType          string               `json:"bounceType,omitempty"`
+	Title               string               `json:"title,omitempty"`
 	Bounds              *RectangleOptions    `json:"bounds,omitempty"`
 	CallbackID          string               `json:"callbackId,omitempty"`
 	Displays            *EventDisplays       `json:"displays,omitempty"`
