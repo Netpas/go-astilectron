@@ -133,9 +133,11 @@ func Unzip(ctx context.Context, src, dst string) (err error) {
 
 // unzipForAstilectron 解压Astilectron
 func unzipForAstilectron(dir string) (err error) {
-	if err = archiver.Unarchive(fmt.Sprintf("%s\\astilectron-v%s.zip", dir, VersionAstilectron), dir); err != nil {
+	zipPath := fmt.Sprintf("%s\\astilectron-v%s.zip", dir, VersionAstilectron)
+	if err = archiver.Unarchive(zipPath, dir); err != nil {
 		return
 	}
+	os.RemoveAll(zipPath)
 	time.Sleep(time.Second)
 	if err = os.Rename(fmt.Sprintf("%s\\astilectron-%s", dir, VersionAstilectron), dir+`\astilectron`); err != nil {
 		return
@@ -145,10 +147,12 @@ func unzipForAstilectron(dir string) (err error) {
 
 // unzipForElectron 解压Electron
 func unzipForElectron(dir string) (err error) {
-	if err = archiver.Unarchive(fmt.Sprintf("%s\\electron-%s-%s-v%s.zip", dir, runtime.GOOS, runtime.GOARCH, VersionElectron),
+	zipPath := fmt.Sprintf("%s\\electron-%s-%s-v%s.zip", dir, runtime.GOOS, runtime.GOARCH, VersionElectron)
+	if err = archiver.Unarchive(zipPath,
 		fmt.Sprintf("%s\\electron-%s-%s", dir, runtime.GOOS, runtime.GOARCH)); err != nil {
 		return
 	}
+	os.RemoveAll(zipPath)
 	return
 }
 

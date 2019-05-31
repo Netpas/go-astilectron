@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -154,17 +155,8 @@ func (p *defaultProvisioner) provisionAstilectron(ctx context.Context, paths Pat
 
 // provisionElectron 准备好 Electron
 func (p *defaultProvisioner) provisionElectron(ctx context.Context, paths Paths, s ProvisionStatus, appName, os, arch string) error {
-	return p.provisionPackage(ctx, paths, s.Electron[provisionStatusElectronKey(os, arch)], p.moverElectron, "Electron", VersionElectron, paths.ElectronUnzipSrc(), paths.ElectronDirectory(), func() (err error) {
-		switch os {
-		case "darwin":
-			if err = p.provisionElectronFinishDarwin(appName, paths); err != nil {
-				return errors.Wrap(err, "finishing provisioning electron for darwin systems failed")
-			}
-		default:
-			astilog.Debug("System doesn't require finshing provisioning electron, moving on...")
-		}
-		return
-	})
+	return p.provisionPackage(ctx, paths, s.Electron[provisionStatusElectronKey(os, arch)], p.moverElectron, "Electron", VersionElectron,
+		paths.ElectronUnzipSrc(), paths.ElectronDirectory(), nil)
 }
 
 // provisionPackage 下载并解压Astilectron 或 Electron，如果已经存在则直接返回
@@ -342,9 +334,22 @@ func NewDisembedderProvisioner(d Disembedder, pathAstilectron, pathElectron stri
 			return
 		},
 		moverElectron: func(ctx context.Context, p Paths) (err error) {
-			if err = Disembed(ctx, d, pathElectron, p.ElectronDownloadDst()); err != nil {
+			/*if err = Disembed(ctx, d, pathElectron, p.ElectronDownloadDst()); err != nil {
 				return errors.Wrapf(err, "disembedding %s into %s failed", pathElectron, p.ElectronDownloadDst())
+			}*/
+			src, err := os.Open("./" + filepath.Base(p.ElectronDownloadDst()))
+			if err != nil {
+				return
 			}
+			defer src.Close()
+
+			dst, err := os.Create(p.ElectronDownloadDst())
+			if err != nil {
+				return
+			}
+			defer dst.Close()
+
+			_, err = io.Copy(dst, src)
 			return
 		},
 	}
